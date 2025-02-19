@@ -64,8 +64,7 @@ def send_seller_summary(user_phone, user_name, offer_price=None, selected_slot=N
         f"offer: {offer_price if offer_price else 'no offer yet'}\n"
         
         f"time: {selected_slot if selected_slot else 'not confirmd'}\n"
-        f"context: Showed interest, asked for details, confirmed visit, discussed price.
-"
+        f"context: Showed interest, asked for details, confirmed visit, discussed price"
         f"contact at this number for confirm {seller_contact}"
     )
     print(f"sent to seller: {summary}")
