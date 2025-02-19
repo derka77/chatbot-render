@@ -1,0 +1,219 @@
+# ✅ GESTION DES INFORMATIONS SUR L'ANNONCE
+def handle_product_info(user_input):
+    """Gère les questions sur l'année, le modèle et l'état du produit"""
+
+model_keywords = [
+    "model", "which model", "what model", "which version", "product model", "which type", 
+    "specs", "configuration", "technical details", "which specs", "what type", "what version",
+    "which model is this", "can you tell me the model", "is this the latest model", 
+    "is this an old model", "which version", "is it an updated model", 
+    "does it have the latest features", "any special specs", "what are the features", 
+    "does it have any upgrades", "which generation", "which series", "which brand", 
+    "does it have high specs", "basic or pro model", "is it the standard version", 
+    "is it the premium model", "does it come with advanced features", "is this the basic model",
+    "which edition", "which build", "hardware specs", "what’s the exact model", 
+    "is it a rare model", "is it a limited edition", "does it have a unique design",
+    "does it come in different versions", "does it have extra features", 
+    "does it support the latest software", "is it compatible with newer models",
+    "does it match the latest trends", "does it have customizable features",
+    "how powerful is it", "is it the high-end model", "does it come with extra accessories",
+    "which one from the series", "is it the base model", "is it a special version",
+    "is this an entry-level model", "what’s the model number", "does it have specific enhancements",
+    "is it the flagship model", "does it have a performance boost",
+    "is this a newer design", "does it have different color options", 
+    "is it an international version", "is it an exclusive model"
+]
+
+year_keywords = [
+    "year", "which year", "model year", "what year", "production year", "release year", "how old is it?", 
+    "what year was it made", "when was it produced", "when was it released", "manufacturing year", 
+    "when was it built", "how many years old is it", "is it a recent model", "is it an old model", 
+    "is it from this year", "was it released this year", "is it the latest model", 
+    "is it an older version", "is it a previous generation", "which year was it launched", 
+    "does it belong to the new generation", "what’s the production date", "is it outdated", 
+    "is it still a current model", "how long has it been out", "how long has it been on the market",
+    "is it still being produced", "is it discontinued", "is it a classic model", 
+    "is it vintage", "is it from last year", "was it released recently", 
+    "is this an older release", "what’s the model’s age", "is it a first-generation model", 
+    "when did this model first come out", "when was this version introduced", 
+    "when was the first release", "which year’s edition is this", "is this an anniversary edition", 
+    "is it the latest version or an old one", "is it still a good model for its year",
+    "does it follow the latest trends", "how long will it stay relevant", 
+    "was this the top model in its year", "is this an upgrade from last year’s model", 
+    "what’s the exact release year", "what’s the official production year", 
+    "does the model still receive updates", "is this year’s model better than the previous one", 
+    "is it still worth buying this year", "has it been updated since its release", 
+    "is it the newest version available", 
+    "does it come with the latest features for its year", "how many generations old is it", 
+    "is it a last-year model", "is it from this decade", 
+    "is it still modern", "is it still competitive for its year", 
+    "is this model still being manufactured", "is this a limited edition for a specific year", 
+    "is there a newer version available", "was it popular in its release year", 
+    "what year did they stop making it",
+    "does it match the new technology standards" 
+    
+]
+
+condition_keywords = [
+    "condition", "is it new", "is it used", "used or new", "is it in good condition", "product condition?", 
+    "status of this?", "what condition?", "is it like new?", "is it brand new?", "is it slightly used?", 
+    "how worn is it?", "is it in perfect condition?", "does it have any scratches?", "does it have any dents?", 
+    "any visible damage?", "any defects?", "any issues with it?", "is it in working condition?", 
+    "is it still functional?", "does it work perfectly?", "does it need any repairs?", "is it damaged?", 
+    "is it refurbished?", "is it factory refurbished?", "is it an open-box item?", "is it second-hand?", 
+    "how much has it been used?", "has it been repaired before?", "is it in excellent shape?", 
+    "is it well-maintained?", "does it look new?", "does it have any missing parts?", "is anything broken?", 
+    "does it have original parts?", "does it come with original packaging?", "is it sealed?", 
+    "is it pre-owned?", "does it show signs of wear?", "is there any wear and tear?", "does it need fixing?", 
+    "is it fully operational?", "is everything intact?", "is there any fading?", "does it have all accessories?", 
+    "are there any cracks?", "does it have original labels?", "any marks or stains?", "is it scratch-free?", 
+    "does it work as expected?", "any functionality problems?", "does it overheat?", "does it have a warranty?", 
+    "is it still under warranty?", "how old is it?", "has it been serviced?", "has it been tested?", 
+    "any performance issues?", "does it run smoothly?", "any buttons not working?", "does it have any rust?", 
+    "any color fading?", "is it waterproof?", "does it need maintenance?", "is it fragile?", 
+    "has it been dropped?", "any loose parts?", "does it need replacement parts?", "any dead pixels?", 
+    "is the battery still good?", "does the battery last long?", "does the screen have scratches?", 
+    "does it charge properly?", "any dents on the body?", "any paint chipping?", "any structural damage?", 
+    "is it in mint condition?", "is it in decent shape?", "does it look used?", "has it been cleaned?", 
+    "does it come with a case?", "is it factory reset?", "does it have software issues?", 
+    "any history of repairs?", "is it still strong?", "is it reliable?", "is there any weakness?", 
+    "how sturdy is it?", "how fresh does it look?", "does it still look nice?", "is it worn out?", 
+    "has it been in storage for a long time?", "has it been kept in good condition?", "does it have any upgrades?", 
+    "is it partially damaged?", "can I see photos of its condition?", "has it been well taken care of?", 
+    "any noticeable flaws?", "has it been exposed to water?", "does it have a clean history?", 
+    "does it need tuning?", "how was it used before?", "how’s the exterior condition?", "is the material still good?",
+    "does it need repainting?", "does it work without problems?", "how's the general wear?", 
+    "is there any hidden damage?", "does it still look stylish?", "is there any internal damage?"
+]
+
+# ✅ GESTION DES DEMANDES DE VISITE SANS DEAL CONFIRMÉ
+def handle_visit_request(user_input, user_phone):
+    """
+    Permet aux acheteurs de demander à visiter sans avoir confirmé un deal.
+    """
+
+visit_keywords = [
+    "visit", "pass", "can I check", "can I see", "can I take a look", "pick up", 
+    "I want to collect", , "can I pass by", "can I come", "can I visit", 
+    "can I check it out", "where can I see it", "can I take a look before buying", 
+    "can I test it", "can I hold it in my hands", "where is it available", 
+    "can I drop by", "can I come over", "where to collect", "is it possible to check in person", 
+    "is it available for viewing", "can I take a closer look", "can I come and see", 
+    "can I come to your place", "where can I come", "is there a showroom", 
+    "where can I pick it up", "is pick-up possible", "can I come and collect", 
+    "do you offer pick-up", "do you allow pick-up", "where can I pick it up from", 
+    "where do I have to go", "where do I need to come", "what is the location for pick-up",
+    "can I inspect it", "can I see it in real life", "where are you located", 
+    "can I check the condition in person", "where is the meet-up point", 
+    "is meet-up possible", "where can we meet", "can I schedule a visit", 
+    "can I arrange a meeting", "is it possible to come over", "can we meet for inspection",
+    "can I verify the product", "where can I check it", "do you allow personal inspection",
+    "can I come now", "can I pass by today", "can I drop by tomorrow", 
+    "is there a time for pick-up", "is self-pickup possible", "where do you usually meet buyers",
+    "can I come to check before deciding", "do you have a physical location", 
+    "can I see it before paying", "can I try it before purchase", "can I hold it to see how it feels",
+    "do you have a store", "is there a pick-up location", "where is your place",
+    "how far are you", "can we arrange a meet-up", "do you meet buyers", "is it okay if I come",
+    "is pick-up free", "do I need an appointment for pick-up", "can I check it out today",
+    "is viewing available", "do you have a time for me to visit", "can I touch and feel it",
+    "do you allow meet-ups", "do you meet customers", "do I need to book a time", 
+    "can I drop by anytime", "do I need to bring anything for pick-up", "where is the collection point"]
+
+# ✅ GESTION DES SALUTATIONS
+def handle_greetings(user_input):
+
+greetings = [
+    "hi", "hello", "hey", "bonjour", "salam", "salut", 
+    "good morning", "good evening", "good afternoon", 
+    "hey there", "hi there", "hello there", "greetings", 
+    "morning", "evening", "afternoon", 
+    "how are you?", "how’s it going?", "hope you're well", 
+    "hope you're doing good", "hope you're doing well", 
+    "nice to meet you", "pleased to meet you", 
+    "quick question", "i’m interested", "interested?", 
+    "can I ask something?", 
+    "is this still for sale?", "good day", "hey, got a minute?"]
+
+price_keywords = [
+    "price", "cost", "negotiable", "discount", "last price", "best price", "final price",
+    "offer", "deal", "sale", "promo", "cheap", "expensive", "firm price",
+    "lowest price", "asking price", "starting price", "market price",
+    "fair price", "cash price"]
+
+material_keywords = [
+    "material", "made of", "fabric", "wood", "metal", "plastic", "leather", "glass",
+    "ceramic", "stone", "marble", "aluminum", "steel", "iron", "brass", "copper",
+    "silver", "gold", "rubber", "silicone", "resin", "bamboo", "wicker", "carbon",
+    "composite", "velvet", "cotton", "linen", "wool", "polyester", "synthetic",
+    "real leather", "faux leather"]
+
+dimensions_keywords = [
+    "size", "dimensions", "measurements", "width", "height", "length",  
+    "depth", "thickness", "diameter", "volume", "capacity", "weight",  
+    "how big", "how tall", "how wide", "how long", "overall size"
+]
+
+
+availability_keywords = [
+    "still available", "is this available", "do you still have it", "is it in stock",
+    "can I buy it now", "is it already sold", "is it reserved", "is it gone",
+    "can I check if it's available", "has it been sold", "is it pending", 
+    "is it out of stock", "is it on hold", "has someone already bought it",
+    "can I pick it up today", "can I buy it now", "is it up for grabs"
+]
+
+shipping_keywords = [
+    "do you deliver", "can you ship", "shipping cost", "delivery fee",
+    "how much for shipping", "do you offer delivery", "does it include shipping",
+    "can I get it delivered", "is postage included", "do you post",
+    "can you send it", "what courier do you use", "what’s the shipping method",
+    "is there free shipping", "how long for delivery", "when will I receive it",
+    "can I pick it up myself", "do you use DHL", "can you mail it",
+    "do you send via UPS", "can I get express delivery", "how much to send it to me",
+    "where do you ship from", "do you offer international shipping",
+    "does it come with tracking", "can I choose the shipping option"
+]
+
+accessories_keywords = [
+    "does it come with", "what’s included", "any extra parts", "does it have accessories",
+    "is the charger included", "does it come with a case", "does it include the box",
+    "is the manual included", "does it come with cables", "are all parts included",
+    "is it complete", "does it include software", "any free accessories", 
+    "does it have original packaging", "is there a remote control", "does it come with a stand",
+    "does it have additional batteries", "any bonus items", "are extra pieces included",
+    "what do I get with it", "does it come with everything needed to use it"
+]
+
+location_keywords = [
+    "where are you located", "where can I pick it up", "what’s the address",
+    "where to meet", "is pickup possible", "where is the item", "meet-up location",
+    "is it available in my area", "can I pick it up near me", "how far are you",
+    "do you offer local pickup", "is there a collection point", "do you have a store",
+    "can we meet halfway", "what city are you in", "what’s the nearest landmark"
+]
+
+accessories_keywords = [
+    "does it come with", "what’s included", "any extra parts", "does it have accessories",
+    "is the charger included", "does it come with a case", "does it include the box",
+    "is the manual included", "does it come with cables", "are all parts included",
+    "is it complete", "does it include software", "any free accessories", 
+    "does it have original packaging", "is there a remote control", "does it come with a stand",
+    "does it have additional batteries", "any bonus items", "are extra pieces included",
+    "what do I get with it", "does it come with everything needed to use it"
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

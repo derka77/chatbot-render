@@ -1,0 +1,96 @@
+import time
+import random
+import re
+import unidecode
+from twilio.rest import Client
+from test_listing import title, category, description, price, location, min_price, seller_contact, image_url, available_slots, condition, year_model
+
+# 🔴 Historique des échanges et confirmations
+confirmed_deals = {}
+scheduled_appointments = {}
+user_conversations = {}
+
+# ✅ Connexion à Twilio
+twilio_client = Client("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN")
+
+# ✅ GESTION DES SALUTATIONS
+def handle_greetings(user_input):
+    greetings = ["hi", "hello", "hey", "bonjour", "salam", "salut", "good morning", "good evening", "how are you"]
+    if any(word in user_input for word in greetings):
+        return random.choice([
+            "Hello! How can I help you?", "Hi there! What can I do for you?", "Salam! How can I assist you?",
+            "Hey! Need any help?", "Greetings! How may I assist?"
+        ])
+    return None
+
+# ✅ GESTION DES INFORMATIONS PRODUIT
+def handle_product_info(user_input):
+    model_keywords = ["model", "which model", "what model"]
+    year_keywords = ["year", "which year", "model year"]
+    condition_keywords = ["condition", "is it new", "is it used"]
+
+    if any(word in user_input for word in model_keywords):
+        return f"The model is {title}. It comes with {description}."
+    if any(word in user_input for word in year_keywords):
+        return f"This product is from {year_model}. It's in {condition} condition."
+    if any(word in user_input for word in condition_keywords):
+        return f"This product is in {condition} condition."
+    return None
+
+# ✅ GESTION DES PRIX ET NÉGOCIATIONS
+def convert_price_format(price_str):
+    price_str = price_str.lower().replace("qar", "").replace(",", "").strip()
+    if re.search(r'\b(202[0-9])\b', price_str) or re.search(r'\b(\d{1,2})\s?(am|pm)\b', price_str):
+        return None  
+    match = re.search(r'(\d+\.?\d*)k', price_str)
+    if match:
+        return int(float(match.group(1)) * 1000)
+    match = re.search(r'\b\d+\b', price_str)
+    if match:
+        return int(match.group(0))
+    return None
+
+def handle_price_negotiation(user_input, user_phone):
+    offer = convert_price_format(user_input)
+    if offer is not None:
+        if offer < min_price:
+            return f"Sorry, {offer} QAR is too low. Looking for a better offer."
+        else:
+            confirmed_deals[user_phone] = offer
+            return f"Deal confirmed at {offer} QAR. Please check my availability. " + propose_appointment_slots(user_phone)
+    return None
+
+# ✅ GESTION DES CRÉNEAUX ET RENDEZ-VOUS
+def propose_appointment_slots(user_phone):
+    if user_phone in scheduled_appointments:
+        return None  
+    slots_text = "\n".join([f"- {slot}" for slot in available_slots])
+    message_body = (
+        f"{slots_text}\n\n"
+        f"To confirm your visit, reply directly to this number:\n"
+        f"{seller_contact}\n"
+        f"Location: {location}\n"
+        f"Google Maps: https://maps.app.goo.gl/TzFqJmMTwx6iRoMG9"
+    )
+    return message_body
+
+# ✅ GESTION DES DEMANDES DE VISITE
+def handle_visit_request(user_input, user_phone):
+    visit_keywords = ["visit", "pass", "can i check", "can i see"]
+    if any(word in user_input for word in visit_keywords):
+        return f"Product: {title}\nPrice: {price}\n\nWould you like to choose a pick-up?"
+    if user_input in ["yes", "interested", "i want to come", "i confirm"]:
+        return propose_appointment_slots(user_phone)
+    return None
+
+# ✅ FONCTION PRINCIPALE DU CHATBOT
+def handle_user_query(user_input, user_phone):
+    user_input = unidecode.unidecode(user_input.strip().lower())
+    user_conversations.setdefault(user_phone, []).append(user_input)
+    return (
+        handle_greetings(user_input) or
+        handle_product_info(user_input) or
+        handle_price_negotiation(user_input, user_phone) or
+        handle_visit_request(user_input, user_phone) or
+        random.choice(["I didn’t get that.", "Can you clarify?", "Sorry, what do you mean?"])
+    )

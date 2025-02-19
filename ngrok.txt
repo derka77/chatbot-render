@@ -1,0 +1,16 @@
+ngrok config add-authtoken 2sZWsNoZnVJhpHDICpVurBMQd4I_3WvyL5hcwka3z7P8TRTZw
+
+https://8d81-78-100-48-139.ngrok-free.app/whatsapp
+
+C:\Users\KHADER.DESK-DCII000515\AppData\Roaming\Claude\CHATBOT
+
+del C:\Users\KHADER.DESK-DCII000515\AppData\Local/ngrok/ngrok.yml
+ngrok config add-authtoken TON_AUTHTOKEN
+
+
+Remove-Item -Path "C:\Users\KHADER.DESK-DCII000515\AppData\Roaming\Claude\CHATBOT\software\" -Recurse -Force
+
+
+[System.Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Users\KHADER.DESK-DCII000515\AppData\Local\ngrok", [System.EnvironmentVariableTarget]::Machine)
+
+C:\Users\KHADER.DESK-DCII000515\AppData\Local\ngrok\ngrok.exe config add-authtoken 2sXVQQMAMjLSBqPEAXEQrKr5yz0_2kSUinKXpg2u2hwaMoBL5

@@ -1,0 +1,577 @@
+import time
+import random
+import re
+import unidecode
+import difflib
+from twilio.rest import Client
+from rapidfuzz import fuzz
+from test_listing import title, category, brand, description, year_model, price, min_price, location, seller_contact, image_url, available_slots, condition
+from datetime import datetime
+
+# ✅ Fonction de conversion des prix (doit être définie avant d’être utilisée)
+def convert_price_format(price_str):
+    """ Convertit une offre de prix en valeur entière """
+    print(f"[DEBUG] Raw price input: {price_str}")  # ✅ Ajout Debug
+    if isinstance(price_str, int):  # ✅ Vérifie si c'est déjà un entier
+        return price_str
+
+    price_str = price_str.lower().replace("qar", "").replace(",", "").strip()
+
+    # ✅ Vérifie si c'est un format "5K6" ou "6.5k"
+    match = re.search(r'(\d+)\s?[kK](\d+)?', price_str)
+    if match:
+        num_part = int(match.group(1)) * 1000
+        decimal_part = int(match.group(2)) * 100 if match.group(2) else 0
+        result = num_part + decimal_part
+        print(f"[DEBUG] Parsed price: {result} QAR")  # ✅ Ajout Debug
+        return result
+
+    # ✅ Vérifie un format "6.5k" ou "5.5k"
+    match = re.search(r'(\d+)\.?(\d+)?\s?[kK]', price_str)
+    if match:
+        num_part = int(match.group(1)) * 1000
+        decimal_part = int(match.group(2)) * 100 if match.group(2) else 0
+        result = num_part + decimal_part
+        print(f"[DEBUG] Parsed price: {result} QAR")  # ✅ Ajout Debug
+        return result
+
+    # ✅ Vérifie un format numérique classique
+    match = re.search(r'\b\d+\b', price_str)
+    if match:
+        result = int(match.group(0))
+        print(f"[DEBUG] Parsed price: {result} QAR")  # ✅ Ajout Debug
+        return result
+
+    print(f"[DEBUG] Failed to parse price: {price_str}")  # ✅ Debug si la conversion échoue
+    return None
+
+# ✅ Éviter de reconvertir un entier déjà transformé
+if isinstance(price, str):
+    price = convert_price_format(price)
+if isinstance(min_price, str):
+    min_price = convert_price_format(min_price)
+
+# ✅ Ajout de la gestion des erreurs
+import logging
+logging.basicConfig(filename="chatbot_errors.log", level=logging.ERROR)
+
+# ⚡️ Gestion des échanges et confirmations
+confirmed_deals = {}
+scheduled_appointments = {}
+user_conversations = {}
+
+def log_user_message(user_phone, message):
+    """ Enregistre chaque message avec un timestamp """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    user_conversations.setdefault(user_phone, []).append(f"[{timestamp}] {message}")
+
+# 🔄 Stockage du contexte des utilisateurs
+user_context = {}
+
+def update_context(user_phone, category):
+    """ Met à jour le contexte pour comprendre les questions successives """
+    user_context[user_phone] = category
+
+def get_context(user_phone):
+    """ Récupère le dernier contexte de l’utilisateur """
+    return user_context.get(user_phone, None)
+
+# Twilio Client pour envoyer les messages
+TWILIO_ACCOUNT_SID = "YOUR_TWILIO_SID"
+TWILIO_AUTH_TOKEN = "YOUR_TWILIO_AUTH_TOKEN"
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+# 🔄 Liste des mots-clés
+keywords = {
+    "greetings": ["hi", "hello", "hey", "salam", "bonjour", "good morning", "good evening", 
+        "how are you", "what's up", "yo", "greetings", "hola", "salutations", 
+        "hey there", "hi there", "good afternoon", "evening", "morning", "sup"],
+
+    "model": ["model", "which model", "what model", "which version", "product model", "which type", 
+        "specs", "configuration", "technical details", "which specs", "what type", "what version",
+        "which model is this", "can you tell me the model", "is this the latest model", 
+        "is this an old model", "which version", "is it an updated model", 
+        "does it have the latest features", "any special specs", "what are the features"],
+
+    "year": ["year", "which year", "model year", "what year", "production year", "release year", 
+        "how old is it?", "what year was it made", "when was it produced", "when was it released", 
+        "manufacturing year", "is it from this year", "was it released this year", "is it the latest model"],
+
+    "condition": ["used or new", "is it new or used", "is it in good condition", "is it still in good shape",
+        "how used is it", "has it been used often", "how often was it used", "was it heavily used",
+        "does it work fine", "does it function properly", "is it in perfect working condition",
+        "is it slightly used", "does it have any scratches", "any signs of wear", "has it been used a lot", "is it in mint condition", "is it like new", "how many times was it used", "used often", "how often used", "how many times used", "is it heavily used", 
+        "does it still work", "does it function properly", "is it in working condition", 
+        "any signs of wear", "is it still reliable", "does it perform well", 
+        "any wear and tear", "has it been used a lot", "how long has it been used", 
+        "is it lightly used", "is it in mint condition", "is it well maintained", 
+        "does it have any issues", "is it in perfect working order"],
+
+    "price": ["what is the price", "how much", "price", "can I get a discount", "is the price negotiable",  
+        "last price", "final price", "discount available", "best price", "any discount",  
+        "lowest price", "how much is this", "how much are you asking", "is this firm price",  
+        "can you lower the price", "cheaper price", "can we negotiate", "is it on sale",  
+        "can you do better on price", "what's your best offer", "what's your lowest offer",  
+        "any promo", "any special offer", "can I get a deal", "bulk price", "combo price",  
+        "can I make an offer", "would you accept", "is there any room for negotiation"],
+
+    "payment": ["do you accept cash", "how can I pay", "payment methods", "can I pay online", "card payment",  
+        "do you take PayPal", "can I pay in installments", "cash only?", "do you take credit card?",  
+        "can I pay by bank transfer?", "is PayPal okay?", "do you accept Apple Pay?", "can I pay with Google Pay?",  
+        "do you take cryptocurrency?", "do you accept checks?", "is cash preferred?",  
+        "can I pay later?", "deposit required?", "is there a down payment?",  
+        "can I pay half now and half later?", "do you offer payment plans?", "is there a fee for card payments?",  
+        "what's the easiest way to pay?", "do you take mobile payments?", "do you accept contactless payment?",  
+        "do you have a QR code for payment?", "can I pay upon delivery?", "is it pay before or after?",  
+        "do I need to send proof of payment?"],
+
+    "guarantee": ["is there a warranty", "how long is the warranty", "any warranty included", "guarantee period",  
+        "does it come with a warranty?", "is there any guarantee?", "how long does the guarantee last?",  
+        "warranty available?", "what does the warranty cover?", "is it under warranty?",  
+        "can I get an extended warranty?", "do you offer a money-back guarantee?", "is there a refund policy?",  
+        "can I return it if it doesn’t work?", "what if it breaks?", "any repair guarantee?",  
+        "is there a manufacturer warranty?", "do I get a receipt for warranty?",  
+        "is the warranty transferable?", "how do I claim the warranty?", "who handles warranty repairs?",  
+        "is there a replacement policy?", "what is your return policy?", "is there a service warranty?",  
+        "does the guarantee include free repairs?", "can I exchange it if faulty?", "is there a trial period?",  
+        "what happens if it stops working?", "does it cover accidental damage?"],
+
+    "authenticity": ["is it original", "is this fake", "is it authentic", "genuine product", "official brand",  
+        "is it a copy", "does it have a certificate", "is this real?", "is it certified?",  
+        "how can I verify it's real?", "is this the official version?", "is it factory sealed?",  
+        "does it come with proof of authenticity?", "can you provide a certificate?",  
+        "is it a replica?", "is it first-hand or second-hand?", "is it brand new or refurbished?",  
+        "does it have the official logo?", "is it made by the original manufacturer?",  
+        "does it come with an authenticity card?", "is this a limited edition?",  
+        "can you show the serial number?", "is this licensed?", "does it come in original packaging?",  
+        "does it have a hologram sticker?", "is it approved by the brand?",  
+        "is there a way to check its authenticity?", "is it handmade or mass-produced?",  
+        "does it match official specifications?", "is it collector's edition?",  
+        "has it been verified by an expert?", "is this a genuine resale?"],
+
+    "car_electronics": ["mileage", "fuel type", "engine capacity", "battery life", "screen size",  
+        "RAM and storage", "processor type", "horsepower", "transmission type", "manual or automatic",  
+        "year of manufacture", "service history", "any accidents?", "number of previous owners",  
+        "car condition", "is it refurbished?", "warranty available?", "charging time",  
+        "USB ports", "Bluetooth support", "WiFi capability", "touchscreen display",  
+        "navigation system", "does it support Apple CarPlay?", "does it have Android Auto?",  
+        "parking sensors", "rearview camera", "cruise control", "sound system brand",  
+        "speaker quality", "headlight type", "fuel efficiency", "electric or hybrid?",  
+        "battery replacement cost", "does it come with original accessories?",  
+        "any scratches or dents?", "is the software upgradable?", "does it have a fingerprint sensor?",  
+        "water resistance rating", "4K or Full HD display?", "does it support fast charging?",  
+        "how long does the battery last?", "how many charging cycles?",  
+        "touchscreen sensitivity", "is it factory unlocked?", "is it compatible with my network?",  
+        "what’s the refresh rate?", "is it gaming-compatible?", "expandable storage?",  
+        "does it have a CD/DVD player?", "does it come with a charger?",  
+        "does it have noise cancellation?", "is the screen OLED or LCD?"],
+
+    "visit_test": ["can I test it", "can I see it working", "is a demo possible", "try before buy",  
+        "can I visit to check", "can I inspect it?", "can I come and see?", "is a trial available?",  
+        "can I check it in person?", "can I try it first?", "is it possible to test before buying?",  
+        "can I come and test it?", "can I see how it works?", "can you show me a video of it working?",  
+        "do you offer test drives?", "can I come and take a look?", "is a hands-on test possible?",  
+        "can I see it in action?", "can I visit your location?", "do you allow in-person testing?",  
+        "can I come to your store?", "is there a showroom?", "can I come and inspect?",  
+        "do you have a demo unit?", "can you demonstrate how it works?", "is an on-site test possible?",  
+        "can I check the condition before paying?", "can I verify it works properly?",  
+        "can I test all the features?", "can I see it before making a decision?"],
+
+    "availability": ["still available", "is this available", "do you still have it", "is it in stock",  
+        "can I buy it now", "is it already sold", "is it reserved", "is it gone",  
+        "is this item taken?", "is this still up for sale?", "can I still get this?",  
+        "do you have more in stock?", "is this the last one?", "any left?",  
+        "is it pending pickup?", "is this listing active?", "has it been claimed?",  
+        "is someone else buying it?", "is this currently available?",  
+        "can I come pick it up now?", "do you have another one?", "any available units?",  
+        "can you hold it for me?", "can I pre-order?", "is there a waiting list?",  
+        "is it backordered?", "is this discontinued?", "how many do you have left?",  
+        "is this limited stock?", "when will it be back in stock?", "is this brand new or leftover stock?"],
+
+    "shipping": ["do you deliver", "can you ship", "shipping cost", "delivery fee", "how much for shipping",  
+        "is shipping included?", "do you offer free shipping?", "how long does shipping take?",  
+        "do you deliver to my area?", "can I pick it up?", "is local pickup available?",  
+        "what are the delivery options?", "do you use express shipping?", "can you send it by mail?",  
+        "which courier do you use?", "do you ship internationally?", "how soon can you ship?",  
+        "can I choose the shipping method?", "do you provide tracking?", "is there a tracking number?",  
+        "who pays for shipping?", "can I pay on delivery?", "do you offer same-day delivery?",  
+        "is next-day delivery available?", "can I schedule delivery?", "do you use insured shipping?",  
+        "can I send my own courier?", "do you deliver on weekends?", "can I get an estimated delivery date?",  
+        "how do I track my order?", "do you provide packaging?", "is the shipping safe?",  
+        "do you offer cash on delivery?", "can you send it through FedEx/UPS/DHL?",  
+        "what’s the cheapest shipping option?", "do you offer bulk shipping rates?"],
+
+    "accessories": ["does it come with", "what’s included", "any extra parts", "does it have accessories",  
+        "is the charger included", "does it come with a case", "does it include the box",  
+        "are all original accessories included?", "does it have all parts?", "any missing parts?",  
+        "does it come with a manual?", "are extra cables included?", "does it include earphones?",  
+        "is the power adapter included?", "does it have a remote control?",  
+        "is there a warranty card?", "does it come with a stand?", "does it have extra batteries?",  
+        "does it include a strap?", "does it come with extra filters?", "are extra lenses included?",  
+        "does it come with a carrying bag?", "is there a protective cover?",  
+        "does it include software or license key?", "does it have a mounting kit?",  
+        "is the SIM card included?", "does it come with extra brushes?", "are there any free add-ons?",  
+        "do I get a screen protector with it?", "does it include a keyboard and mouse?",  
+        "does it come with a dock or stand?", "are cables and adapters included?",  
+        "does it come fully assembled?", "is a memory card included?", "does it have a belt clip?",  
+        "are there additional attachments?", "does it come with a cleaning cloth?"],
+
+    "location": ["where are you located", "where can I pick it up", "what’s the address",  
+        "where to meet", "is pickup possible", "can we meet somewhere?",  
+        "where do I go?", "can I collect it in person?", "pickup location?",  
+        "is local pickup available?", "can you share your location?",  
+        "do you have a store?", "where is your shop?", "where do you deliver from?",  
+        "is there a meeting point?", "can we meet halfway?", "do you have a fixed pickup spot?",  
+        "what’s the nearest landmark?", "can I pick it up at your house?",  
+        "do you offer curbside pickup?", "is pickup free?", "do you have a warehouse?",  
+        "can we meet at a public place?", "where should I come?", "is there a safe pickup spot?",  
+        "can I choose the meetup location?", "can I pick up today?", "where exactly are you?",  
+        "how far are you from my location?", "is it safe to meet there?", "is parking available?",  
+        "can I pick it up from your office?", "do you offer contactless pickup?",  
+        "is pickup available on weekends?"]
+
+}
+
+# 🔄 Réponses associées aux catégories
+responses = {
+    "greetings": ["Hello! How can I help you?", "Hey! Need any help?", "Salam! How can I assist you?",  
+    "Hi there! What can I do for you?", "Hello, what information do you need?",  
+    "Hey! Let me know how I can assist you.", "Hi! How’s it going? Need any details?",  
+    "Hello! Feel free to ask any questions.", "Hey there! How can I be of service?",  
+    "Hi! What do you need help with?", "Hey, what can I do for you today?", "Hello! Do you have any questions?",  
+    "Hi there! Let me know if you need any info.", "Hello! Looking for something? Let me know!", "Hi! What are you interested in?",  
+    "Hey! I’d be happy to help. What do you need?", "Hi! How can I make this easier for you?",  
+    "Hello! Ready to assist. What’s on your mind?"],
+
+    "model": ["This is the {brand} {title}", "You're looking at a {title} from {brand}",
+    "The model is {title}, manufactured by {brand}", "This {brand} {title} is a great choice",
+    "You are viewing a {title} by {brand}", "This {title} is a genuine product from {brand}",
+    "The {title} is a well-known model from {brand}", "This {brand} {title} is highly rated"],
+
+    "year": ["This model was released in {year_model}", "The production year is {year_model}",
+    "This {title} was manufactured in {year_model}", "It was made in {year_model}",
+    "The {title} is from {year_model}", "This unit dates back to {year_model}",
+    "It has been in production since {year_model}", "Originally built in {year_model}"],
+
+    "condition": ["It's in {condition} condition", "The item is {condition}", "It's a {condition} product",
+    "This is a {condition} item", "The overall condition is {condition}",
+    "Expect a {condition} condition", "It has been well maintained and is {condition}",
+    "This product is still in {condition} shape"],
+
+    "availability": ["Yes, the item is still available!", "It's still for sale", "Yes, you can still buy this item",
+    "Yes, it's available", "This item hasn’t been sold yet", "Still up for grabs!",
+    "Yes, it's on sale and available", "It's currently available, let me know if you're interested"],
+
+    "shipping": ["Sorry, shipping is not available\nPick-up is required",
+    "I can't offer delivery at the moment\nThis item is for local pickup only",
+    "Shipping is not an option for this item\nYou will need to pick it up",
+    "Unfortunately, I do not offer shipping\nThe item must be collected in person",
+    "No shipping available\nThe item can only be picked up from {location}",
+    "This item is only available for pickup\nNo delivery service is offered",
+    "I do not ship this item\nPlease arrange for a pickup",
+    "Pick-up only\nShipping is not available for this item"],
+
+    "accessories": ["It comes with all original accessories.", "The package includes {accessories}",
+    "Yes, it includes {accessories}.", "Everything that came in the box is included",
+    "Accessories included: {accessories}.", "Comes with {accessories} as part of the package",
+    "Yes, {accessories} are part of the deal.", "You’ll receive {accessories} with this purchase"],
+
+    "location": ["The item is available at {location}.", "You can pick it up from {location}",
+    "Meet-up is possible at {location}.", "Location: {location}",
+    "You can collect it at {location}.", "Pick-up point: {location}",
+    "We can arrange a meet-up at {location}.", "This item is located in {location}"],
+
+    "price": ["The price is {price} Qar. Let me know if you’re interested!", "It’s currently available for {price} Qar",
+    "I'm selling this for {price} Qar", "The asking price is {price}",
+    "Price is set at {price} Qar", "You can get this for {price} Qar",
+    "This item costs {price}", "The listed price is {price}"],
+
+    "payment": ["Payment is usually discussed on-site. Cash and local transactions are preferred",
+    "We accept cash and local payments.", "Cash on pickup is preferred",
+    "Payment options can be discussed.", "Payments can be made in person",
+    "Cash and standard payment methods accepted.", "You can pay upon collection",
+    "We can talk about payment arrangements when you decide to buy"],
+
+    "guarantee": ["This product comes with a {warranty_period} warranty", 
+    "A warranty of {warranty_period} is included",
+    "You get a {warranty_period} warranty with this item", 
+    "This item is covered under a {warranty_period} warranty",
+    "Warranty coverage lasts for {warranty_period}", 
+    "The product includes a {warranty_period} manufacturer warranty",
+    "You'll have a {warranty_period} guarantee on this", 
+    "Warranty period: {warranty_period}"],
+
+    "authenticity": ["This is an original {brand} product. It comes with {authenticity_certificate}",
+    "Authenticity guaranteed: {brand} {title}.", "This is a genuine {brand} item",
+    "Yes, it's 100% authentic from {brand}.", "It has been verified as an original {brand} product",
+    "Comes with proof of authenticity: {authenticity_certificate}", 
+    "This is not a replica—it's an authentic {brand} item",
+    "You will receive an authenticity certificate: {authenticity_certificate}"],
+
+    "car_electronics": ["It has {mileage} km and runs on {fuel_type}.", "The battery life is around {battery_life}",
+    "This vehicle has {mileage} km on it.", "Fuel type: {fuel_type}",
+    "Battery condition: {battery_life}.", "It features a powerful {engine_capacity} engine",
+    "The mileage is {mileage}, and it's in good condition", 
+    "Runs efficiently with {fuel_type} and {battery_life} battery life"],
+
+    "visit_test": ["You can visit to check and test it. Let’s schedule a time!", 
+    "A demo is possible, let me know when you want to visit",
+    "Feel free to come and test it.", "You are welcome to try before buying",
+    "Testing is allowed before purchase.", "We can arrange a time for you to see it working",
+    "I can show you how it works before you decide.", "Demo available upon request"]
+}
+
+def correct_spelling(user_input):
+    """ Corrige les fautes de frappe en comparant avec les mots-clés disponibles """
+    all_keywords = [word for sublist in keywords.values() for word in sublist]
+    corrected_words = []
+    
+    for word in user_input.split():
+        close_match = difflib.get_close_matches(word, all_keywords, n=1, cutoff=0.8)
+        corrected_words.append(close_match[0] if close_match else word)
+    
+    return " ".join(corrected_words)
+
+def handle_greetings(user_input):
+    """Gère les salutations avec une meilleure reconnaissance"""
+    print(f"[DEBUG] handle_greetings() executed for: {user_input}")  # ✅ Debug pour voir si on analyse bien la salutation
+
+    greetings_keywords = ["hi", "hello", "hey", "salam", "bonjour", "good morning", "good evening",
+                          "how are you", "what's up", "yo", "greetings", "hola", "salutations"]
+
+    user_input = user_input.lower()  # ✅ Convertir l'entrée utilisateur en minuscule pour éviter les erreurs
+
+    # 🔄 Vérifier si l'entrée utilisateur contient un mot-clé de salutation
+    for word in greetings_keywords:
+        if re.search(r'\b' + re.escape(word) + r'\b', user_input):
+            print(f"[DEBUG] Greeting detected: {word}")  # ✅ Debug pour voir quelle salutation est reconnue
+            return random.choice([
+                "Hello! How can I help you?", 
+                "Hey! Need any help?", 
+                "Salam! How can I assist you?",  
+                "Hi there! What can I do for you?", 
+                "Hello, what information do you need?"
+            ])
+
+    return None  # ✅ Retourne None si ce n’est pas une salutation
+
+# 📌 Fonction de correspondance approximative
+def fuzzy_match(user_input, category_keywords):
+    """ Vérifie si l'entrée utilisateur correspond approximativement à un des mots-clés """
+    best_score = 0
+    best_match = None
+    adaptive_threshold = 80  # Seuil par défaut
+
+    for keyword in category_keywords:
+        score = fuzz.partial_ratio(user_input, keyword)
+
+        # Si le mot-clé est long, baisser le seuil pour mieux reconnaître les erreurs
+        if len(keyword) > 10:
+            adaptive_threshold = 75  
+
+        if score > best_score:
+            best_score = score
+            best_match = keyword
+
+    return best_score >= adaptive_threshold
+
+def handle_price_negotiation(price_offer, user_phone):
+    print(f"[DEBUG] Offer detected: {price_offer} QAR")  
+
+    if price_offer >= price:
+        return f"Great! {price_offer} QAR deal confirmed. Let’s arrange pickup!"
+
+    elif price_offer >= min_price:
+        counter_offer = (price + min_price) // 2  # ✅ Ajustement logique de la contre-offre
+        return f"Almost there! If you can do {counter_offer} QAR, we have a deal!"
+
+    else:
+        return f"Sorry, {price_offer} QAR is too low. Maybe a better offer?"
+
+
+def convert_k_notation(price_str):
+    """ Convertit des valeurs comme 10K en 10000 et 5.6K en 5600 """
+    price_str = price_str.upper().replace("QAR", "").replace(",", "").strip()
+    
+    pattern = r'(\d+(\.\d+)?)K'  # Gestion des valeurs avec un point décimal (ex: 5.6K)
+    matches = re.findall(pattern, price_str)
+
+    for match in matches:
+        num_part = float(match[0]) * 1000
+        converted_value = str(int(num_part))
+        price_str = price_str.replace(match[0] + "K", converted_value)
+
+    return price_str
+
+# ✅ GESTION DES INFORMATIONS SUR L'ANNONCE (Modèle, année, état, prix)
+def handle_product_info(user_input):
+    """Gère les questions sur l'année, le modèle, l'état et le prix du produit"""
+    
+    model_keywords = ["model", "which model", "what model", "which version", "product model", "which type"]
+    year_keywords = ["year", "which year", "model year", "what year", "production year", "release year"]
+    condition_keywords = ["condition", "is it new", "is it used", "used or new", "is it in good condition"]
+    price_keywords = ["price", "how much", "cost", "rate", "what is the price"]
+
+    if any(word in user_input for word in model_keywords):
+        return f"The model is **{title}**, manufactured by **{brand}**. {description}"
+
+    if any(word in user_input for word in year_keywords):
+        return f"This model was released in **{year_model}**."
+
+    if any(word in user_input for word in condition_keywords):
+        return f"It is in **{condition}** condition."
+
+    if any(word in user_input for word in price_keywords):
+        return f"The price is **{price} QAR**. The minimum acceptable offer is **{min_price} QAR**."
+
+    return None
+
+def handle_visit_request(user_input, user_phone):
+    """Gère les demandes de visite du produit"""
+    visit_keywords = ["visit", "check", "see", "view", "inspect", "meet", "can I come"]
+
+    if any(word in user_input.split() for word in visit_keywords):
+        return (
+            f"Product: {title}\n"
+            f"Price: {price}\n"
+            f"Would you like to schedule a visit?"
+        )
+
+    return None
+
+# ✅ FONCTION PRINCIPALE DU CHATBOT
+# 📌 Gestion des requêtes utilisateur
+def handle_user_query(user_input, user_phone):
+    global price  # Assure que 'price' est bien une variable globale
+    print(f"[DEBUG] Keywords loaded: {list(keywords.keys())}")  
+    user_input = unidecode.unidecode(user_input.strip().lower())  
+    user_input = re.sub(r'[^\w\s]', '', user_input)  
+    user_input = convert_k_notation(user_input)
+    user_input = correct_spelling(user_input)
+    print(f"[DEBUG] User input processed: {user_input}")  
+
+    # 📌 Vérifier en priorité les salutations
+    greeting_response = handle_greetings(user_input)
+    if greeting_response:
+        print(f"[DEBUG] Greeting matched and response sent: {greeting_response}")  
+        return greeting_response  
+
+    # 📌 Vérifier les informations produit
+    print(f"[DEBUG] Checking product info: {user_input}")
+    product_info_response = handle_product_info(user_input)
+    if product_info_response:
+        return product_info_response
+
+    # 📌 Vérifier la validité du prix
+    if price is None:  # Ajout d'une valeur de secours pour éviter l'erreur
+        price = 0
+        print(f"[DEBUG] Warning: price was None, setting to 0")
+
+    if not isinstance(price, int):
+        try:
+            price = int(re.sub(r'\D', '', str(price)))
+        except ValueError:
+            print("[DEBUG] Error converting price to int")
+            price = 0  # Définit un fallback
+
+    # 📌 Vérifier si l'utilisateur demande le prix directement
+    if any(word in user_input for word in ["how much", "price", "cost", "what is the price", "how much does it cost"]):
+        print(f"[DEBUG] Price request detected: {user_input}")
+        return random.choice([
+            f"The price is {price} QAR. Let me know if you're interested",
+            f"It's available for {price} QAR. What do you think?",
+            f"I'm looking for around {price} QAR. Open to discussion",
+            f"The listing price is {price} QAR. Feel free to ask if you need more info"
+        ])
+
+    return random.choice([
+        "Not sure, can you clarify?",
+        "I didn’t get that, try another way.",
+        "Could you rephrase that?",
+        "Sorry, I didn’t catch that.",
+        "Can you say it differently?"
+    ])
+
+    # 📌 Vérifier la négociation des prix
+    print(f"[DEBUG] Checking price negotiation: {user_input}")  
+    price_response = handle_price_negotiation(user_input, user_phone)
+    if price_response:
+        return price_response
+
+    # 📌 Vérifier la disponibilité
+    if fuzzy_match(user_input, keywords["availability"]):
+        print(f"[DEBUG] Availability request detected: {user_input}")  
+        return "Yes, it's still available!"
+
+    # 📌 Vérifier la possibilité de test / visite
+    if fuzzy_match(user_input, keywords["visit_test"]):
+        print(f"[DEBUG] Visit request detected: {user_input}")  
+        return "Yes, you can visit to check and test it. Let’s schedule a time!"
+
+    # 📌 Vérifier les méthodes de paiement
+    if fuzzy_match(user_input, keywords["payment"]):
+        print(f"[DEBUG] Payment request detected: {user_input}")  
+        return "Payment can be made via cash or bank transfer."
+
+    # 📌 Vérifier la livraison
+    if fuzzy_match(user_input, keywords["shipping"]):
+        print(f"[DEBUG] Shipping request detected: {user_input}")  
+        return "No shipping available. Pick-up only."
+
+    # 📌 Vérifier si l'entrée correspond à une catégorie spécifique
+    for category, words in keywords.items():
+        if fuzzy_match(user_input, words):
+            print(f"[DEBUG] Matched category: {category}")  
+            update_context(user_phone, category)
+            response_template = random.choice(responses[category])
+            return response_template.format(
+                title=title, brand=brand, year_model=year_model, condition=condition,
+                price=f"{price} QAR", warranty_period="6 months", authenticity_certificate="Yes"
+            )
+
+    # 📌 Réponse par défaut si rien n'est détecté
+    return random.choice([
+        "Not sure, can you clarify?", "Say again?", "I didn’t get that, try another way",  
+        "Could you rephrase that?", "Sorry, I didn’t catch that",  
+        "Can you say it differently?", "I need more details",  
+        "I don’t understand, can you explain?", "That wasn’t clear, try again",  
+        "Can you be more specific?"
+    ])
+
+# 📌 Proposer un rendez-vous
+def propose_appointment_slots(user_phone):
+    slots_text = "\n".join([f"- {slot}" for slot in available_slots])
+    return random.choice([
+        f"Here are the available time slots\n{slots_text}\n\nTo proceed, please contact me directly at {seller_contact}\nLocation: {location}",
+        f"I’m available at these times\n{slots_text}\n\nPlease reach out to me at {seller_contact} to confirm\nLocation: {location}",
+        f"When would you like to meet? Here are my available slots\n{slots_text}\n\nI won't be able to reply here, so please call or message me at {seller_contact} to finalize\nLocation: {location}",
+        f"Available meeting times\n{slots_text}\n\nFor confirmation, kindly message me directly at {seller_contact} I won't be able to confirm here\nLocation: {location}",
+        f"To set up a meeting, here are my available slots\n{slots_text}\n\nPlease contact me at {seller_contact}, as I can't finalize appointments in this chat\nLocation: {location}"
+    ])
+
+# 📌 Transfert à un humain après 3 échecs
+def transfer_to_human(user_phone):
+    """Transfère la conversation à un humain si le chatbot échoue trop souvent"""
+    failure_count = sum(1 for msg in user_conversations[user_phone][-5:] if msg in [
+        "Not sure, can you clarify?", "Say again?", "I didn’t get that, try another way",
+        "Could you rephrase that?", "Sorry, I didn’t catch that"
+    ])
+
+    if failure_count >= 4:
+        try:
+            last_message = user_conversations[user_phone][-1] if user_conversations[user_phone] else "No message found"
+            twilio_client.messages.create(
+                from_="whatsapp:+14155238886",
+                to=f"whatsapp:{seller_contact}",
+                body=f"A buyer needs assistance. Last message: {last_message}"
+            )
+            return random.choice([
+                "I’ll check and get back to you soon",
+                "I’ll come back to you shortly",
+                "Let me review this and I’ll update you"
+            ])
+        except Exception as e:
+            logging.error(f"Error in transfer_to_human: {e}")
+            return "I'm currently unable to connect you. Please try again later."
+
+

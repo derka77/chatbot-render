@@ -1,0 +1,22 @@
+cd C:\Users\KHADER.DESK-DCII000515\AppData\Roaming\Claude\CHATBOT
+ngrok http 5000
+
+
+https://xxxx.ngrok-free.app/whatsapp
+ A COPIER 
+
+cd C:\Users\KHADER.DESK-DCII000515\AppData\Roaming\Claude\CHATBOT
+python app.py
+
+
+
+
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+en local sans twilio
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+cd C:\Users\KHADER.DESK-DCII000515\AppData\Roaming\Claude\CHATBOT\chatbot tester
+
+python chatbot_tester.py

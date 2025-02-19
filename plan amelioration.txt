@@ -1,0 +1,37 @@
+🌟 PLAN D'AMÉLIORATION DU CHATBOT
+Phase 1 : Améliorer la compréhension et éviter de perdre des acheteurs
+➤ Tolérance aux fautes d’orthographe et aux abréviations
+
+Ajouter une correction orthographique avancée et une normalisation des mots courants pour mieux comprendre les messages.
+Exemple : "wat is ur lst price?" ➝ "What is your last price?"
+➤ Meilleure reconnaissance des questions sur la négociation et les offres
+
+Détection des offres indirectes : "Can I get it for 5800?" au lieu de "I offer 5800"
+Associer des réponses plus engageantes pour ne pas décourager l’acheteur.
+➤ Gestion dynamique des acheteurs sérieux vs. curieux
+
+Détecter les signaux d’intérêt sérieux (ex: "when can I visit?", "Can I book it?").
+Passer directement à l’étape de prise de RDV sans poser trop de questions inutiles.
+Phase 2 : Optimiser l’interaction et la fluidité des discussions
+➤ Meilleure gestion des discussions répétitives
+
+Ajouter un historique de conversation courte (ex: 10 derniers messages) pour éviter de répéter des informations.
+➤ Reconnaitre le contexte d'une offre validée
+
+Si une offre est acceptée, proposer automatiquement un RDV + numéro de contact.
+➤ Simuler un chatbot plus humain
+
+Réponse avec variations en fonction du contexte.
+Ajouter un léger délai pour paraître plus naturel.
+Phase 3 : Rendre le chatbot encore plus intelligent
+➤ Détection des acheteurs non sérieux (Spam)
+
+Repérer les messages suspects ou répétitifs et éviter les faux acheteurs.
+➤ Réponse proactive et suggestions intelligentes
+
+Si le prix est trop élevé, proposer des alternatives.
+Ajouter une réponse du type : "Would you like to see similar offers?"
+➤ Meilleur traitement des messages ambigus
+
+Si le bot ne comprend pas bien, reformuler et poser une question plutôt que de dire "I don't understand"
+Exemple : "Did you mean the price or the availability?"
