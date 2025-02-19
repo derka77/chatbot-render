@@ -23,9 +23,10 @@ def chatbot():
 @app.route('/whatsapp', methods=['POST'])
 def whatsapp():
     incoming_msg = request.values.get('Body', '').strip()
-    user_phone = request.values.get('From', '').strip()  # ✅ Récupérer le numéro de téléphone
+    user_phone = request.values.get('From', '').strip()
 
-    # ✅ Utiliser `handle_user_query()` avec le numéro de téléphone
+    print(f"📩 Message reçu : {incoming_msg} de {user_phone}")  # Ajout du log
+
     bot_reply = handle_user_query(incoming_msg, user_phone)
 
     # 🔍 Debug : afficher les logs des messages
