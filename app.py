@@ -1,6 +1,9 @@
 from flask import Flask, request, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
 from chatbot import handle_user_query  # ✅ On utilise notre propre chatbot
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 
 app = Flask(__name__)
 
@@ -25,7 +28,7 @@ def whatsapp():
     incoming_msg = request.values.get('Body', '').strip()
     user_phone = request.values.get('From', '').strip()
 
-    print(f"📩 Message reçu : {incoming_msg} de {user_phone}")  # Ajout du log
+    app.logger.info(f"📩 Message reçu : {incoming_msg} de {user_phone}")
 
     bot_reply = handle_user_query(incoming_msg, user_phone)
 
