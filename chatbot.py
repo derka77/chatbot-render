@@ -43,14 +43,14 @@ def handle_price_negotiation(user_input, user_phone):
 
 def propose_appointment_slots():
     slots_text = "\n".join([f"{slot.replace('.', '')}" for slot in available_slots])
-    return f"you can visit price is {price} QAR\navailable times:\n" + slots_text + "\nconfirm fast contact {seller_contact}"
+    return f"you can visit price is {price} QAR\navailable times:\n" + slots_text + f"\nconfirm fast contact {seller_contact}"
 
 def handle_visit_request(user_input, user_phone):
     visit_keywords = ["can i visit", "can i check", "see it", "meet to view"]
     if any(request in user_input for request in visit_keywords):
         response = propose_appointment_slots()
         if user_conversations[user_phone][-1].startswith("you can visit"):
-            response += f"Just a reminder, price is {price} QAR"
+            response += f"\nJust a reminder, price is {price} QAR."
         return response
     return None
 
@@ -60,29 +60,35 @@ def send_seller_summary(user_phone, user_name, offer_price=None, selected_slot=N
         f"new buyer\n"
         f"name: {user_name}\n"
         f"phone: {user_phone}\n"
-        
         f"offer: {offer_price if offer_price else 'no offer yet'}\n"
-        
         f"time: {selected_slot if selected_slot else 'not confirmd'}\n"
-        f"context: Showed interest, asked for details, confirmed visit, discussed price"
+        f"context: Showed interest, asked for details, confirmed visit, discussed price.\n"
         f"contact at this number for confirm {seller_contact}"
     )
     print(f"sent to seller: {summary}")
     return random.choice([f"ok {user_name}, your details sent, expect a call soon", f"got it {user_name}, details forwarded, you should receive a call soon", f"info sent {user_name}, you will be contacted soon"])
 
 def handle_user_query(user_input, user_phone, user_name=""):
-    details_keywords = ["more details", "tell me more", "need info"]
-    if any(keyword in user_input for keyword in details_keywords):
-        return f"{description}"
     user_input = unidecode.unidecode(user_input.strip().lower())
     user_conversations.setdefault(user_phone, []).append(user_input)
-    
-    for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
-        response = handler(user_input)
-        if response:
-            return response
-    
-    return random.choice(["hmm not sure, say again", "could you rephrase?", "not sure what you mean, try again"])
+
+    # Gestion des salutations
+    greetings = ["hi", "hello", "salam", "hey", "bonjour"]
+    if any(word in user_input for word in greetings):
+        return random.choice(["Wa alaykum salam!", "Hello!", "Hey! How can I help you?"])
+
+    # Gestion des demandes d'infos
+    details_keywords = ["more details", "tell me more", "need info", "which model", "which year", "is it used"]
+    if any(keyword in user_input for keyword in details_keywords):
+        return f"The model is {year_model}, condition: {condition}. More details: {description}"
+
+    # Gestion des demandes de visite
+    visit_response = handle_visit_request(user_input, user_phone)
+    if visit_response:
+        return visit_response
+
+    # Gestion de la négociation du prix
+    return handle_price_negotiation(user_input, user_phone)
 
 if __name__ == "__main__":
     test_phone = "+97412345678"
