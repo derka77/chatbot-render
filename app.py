@@ -37,6 +37,10 @@ def whatsapp():
     twilio_response.message(bot_reply)
     return str(twilio_response)
 
-if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+import os
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Render définit un port automatiquement
+    app.run(host="0.0.0.0", port=port, debug=True)
+
 
