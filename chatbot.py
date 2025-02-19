@@ -50,7 +50,7 @@ def handle_visit_request(user_input, user_phone):
     if any(request in user_input for request in visit_keywords):
         response = propose_appointment_slots()
         if user_conversations[user_phone][-1].startswith("you can visit"):
-        response = f"Just a reminder, price is {price} QAR"
+            response += f"Just a reminder, price is {price} QAR"
         return response
     return None
 
