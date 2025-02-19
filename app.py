@@ -38,6 +38,7 @@ def whatsapp():
 
     # ✅ Répondre via Twilio
     twilio_response = MessagingResponse()
+    app.logger.info(f"🤖 Bot répond : {bot_reply}")
     twilio_response.message(bot_reply)
     return str(twilio_response)
 
