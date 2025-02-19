@@ -73,14 +73,27 @@ def handle_user_query(user_input, user_phone, user_name=""):
     user_conversations.setdefault(user_phone, []).append(user_input)
 
     # Gestion des salutations
-    greetings = ["hi", "hello", "salam", "hey", "bonjour"]
+    greetings = ["hi", "hello", "salam", "hey", "bonjour", "how are you"]
     if any(word in user_input for word in greetings):
-        return random.choice(["Wa alaykum salam!", "Hello!", "Hey! How can I help you?"])
+        return random.choice(["Wa alaykum salam!", "Hello!", "Hey! How can I help you?", "I'm good, thanks for asking!"])
 
     # Gestion des demandes d'infos
-    details_keywords = ["more details", "tell me more", "need info", "which model", "which year", "is it used"]
+    details_keywords = ["more details", "tell me more", "need info", "which model", "which year", "is it used", "is it new", "is there any damaged"]
+    if "which year" in user_input:
+        return f"The model year is {year_model}."
+    if "is it new" in user_input:
+        return "No, it's used." if condition.lower() == "used" else "Yes, it's new."
+    if "is there any damaged" in user_input:
+        return "No damages, it's in good condition."
     if any(keyword in user_input for keyword in details_keywords):
         return f"The model is {year_model}, condition: {condition}. More details: {description}"
+
+    # Gestion des réponses "Yes" et "No" après négociation
+    if user_input in ["yes", "no"] and user_conversations[user_phone]:
+        last_message = user_conversations[user_phone][-1]
+        if "so you say" in last_message:
+            return "Ok noted, I will check and confirm."
+        return "Understood. Let me know if you need anything else."
 
     # Gestion des demandes de visite
     visit_response = handle_visit_request(user_input, user_phone)
