@@ -28,4 +28,8 @@ FOLLOW_UP_VARIANTS = [
     "Let me check and I will come back",
     "Give me a moment I will get back to you"
 ]
+FAQ_QUESTIONS = {
+    "What is the price?": "The price is {price} QAR.",
+    "Can I visit?": "Here are the available slots: {slots}."
+}
 
