@@ -94,7 +94,7 @@ def handle_user_query(user_input, user_phone, user_name=""):
         return "wa aleykoum salam, how can I help?"
     
     # Vérifier si c'est une question standard avec l'ancien système
-    for handler in [handle_visit_request, lambda inp: handle_price_negotiation(inp, user_phone)]:
+    for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
         response = handler(user_input)
         if response:
             return response
