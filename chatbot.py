@@ -6,7 +6,7 @@ from twilio.rest import Client
 from test_listing import title, category, description, price, location, min_price, seller_contact, image_url, available_slots, condition, year_model, location_map_url
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(C:\Users\KHADER.DESK-DCII000515\AppData\Roaming\Claude\CHATBOT)))  # Ajoute le dossier courant au chemin des imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # Ajoute le dossier courant au chemin des imports
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
 
