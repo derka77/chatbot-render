@@ -91,7 +91,13 @@ def handle_user_query(user_input, user_phone, user_name=""):
         "price": [f"I was looking for {price} QAR but I might adjust", f"The price is {price} QAR but I can consider offers"]
     }
     
-    best_match, score = process.extractOne(user_input, GENERAL_RESPONSES.keys(), scorer=fuzz.partial_ratio)
+    match = process.extractOne(user_input, GENERAL_RESPONSES.keys(), scorer=fuzz.partial_ratio)
+
+    if match:  # Vérifier si une correspondance a été trouvée
+        best_match, score = match[0], match[1]
+        if score > 75:
+            return random.choice(GENERAL_RESPONSES[best_match])
+
     if score > 75:
         return random.choice(GENERAL_RESPONSES[best_match])
     
