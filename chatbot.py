@@ -74,6 +74,21 @@ def handle_user_query(user_input, user_phone, user_name=""):
     user_input = unidecode.unidecode(user_input.strip().lower())
     save_conversation(user_phone, user_input)
 
+    # Gestion des salutations
+    GREETINGS = {
+        "hello": ["Hello how can I help", "Hi there how can I assist you"],
+        "hi": ["Hi how can I help", "Hey how's it going"],
+        "how are you": ["I'm good thanks how can I assist you", "I'm fine how can I help"],
+        "you feel well": ["I'm good thanks how can I assist you", "I'm fine how can I help"],
+        "morning": ["Good morning how can I assist you", "Morning how can I help"],
+        "good evening": ["Good evening how can I assist you", "Good evening how can I help"]
+        "good morning": ["Good morning how can I assist you", "Good Morning how can I help"]
+    }
+
+    if user_input in GREETINGS:
+        return random.choice(GREETINGS[user_input])
+
+
     if user_input.startswith("salam"):
         return "wa aleykoum salam how can I help"
     
