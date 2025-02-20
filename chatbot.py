@@ -91,11 +91,31 @@ def handle_user_query(user_input, user_phone, user_name=""):
     if user_input.startswith("salam"):
         return "wa aleykoum salam how can I help"
 
-    # Gestion des requêtes utilisateur
-    for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
-        response = handler(user_input)
-        if response:
-            return response
+    # Vérifier si c'est une demande de visite
+visit_response = handle_visit_request(user_input, user_phone)
+if visit_response:
+    return visit_response
+
+# Vérifier si c'est une négociation de prix
+price_response = handle_price_negotiation(user_input, user_phone)
+if price_response and "QAR" in price_response:
+    return price_response
+
+# Vérifier si l'utilisateur pose une question sur l'annonce
+question_keywords = {
+    "model": f"It's a {title}, category: {category}",
+    "year": f"The model year is {year_model}",
+    "condition": f"The item is in {condition} condition",
+    "available": f"It's available. The price is {price} QAR",
+}
+
+for keyword, response in question_keywords.items():
+    if keyword in user_input:
+        return clean_text(response)
+
+# Sinon, donner une réponse générique
+return random.choice(RESPONSE_VARIANTS)
+
 
 
     # Après plusieurs erreurs, redirection vers un humain
