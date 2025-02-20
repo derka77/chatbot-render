@@ -15,8 +15,10 @@ from dotenv import load_dotenv
 load_dotenv()  # Charge les variables d'environnement du fichier .env
 
 # 🔹 Configure ta clé API OpenAI (Stocke-la en variable d’environnement)
-openai.api_key = os.getenv("OPENAI_API_KEY")  
-
+openai.api_key = os.getenv("OPENAI_API_KEY")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 
 # Historique des échanges
 confirmed_deals = {}
