@@ -93,10 +93,14 @@ def handle_user_query(user_input, user_phone, user_name=""):
     
     match = process.extractOne(user_input, GENERAL_RESPONSES.keys(), scorer=fuzz.partial_ratio)
 
-    if match:  # Vérifier si une correspondance a été trouvée
-        best_match, score = match[0], match[1]
-        if score > 75:
+    if match and len(match) >= 2:  # Vérifie que le match contient bien 2 éléments
+        best_match, score = match[:2]  # Sécurisation du déballage des valeurs
+        if score > 50:  # Abaisser le seuil pour éviter trop de rejets
             return random.choice(GENERAL_RESPONSES[best_match])
+
+    # Si aucune intention claire n'est trouvée, proposer une réponse générique
+    return "I'm not sure I understood, but the product is available. Let me know if you need details."
+
 
     if score > 75:
         return random.choice(GENERAL_RESPONSES[best_match])
