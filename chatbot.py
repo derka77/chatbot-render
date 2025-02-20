@@ -90,7 +90,7 @@ def handle_user_query(user_input, user_phone, user_name=""):
     if user_input.startswith("salam"):
         return "wa aleykoum salam, how can I help?"
     
-    # Détection des intentions de l'acheteur
+    # ✅ Gestion des questions détectées
     if "battery" in user_input or "drain" in user_input:
         return "The battery life is great, lasts several hours without any issue."
     elif "scratches" in user_input or "broken screen" in user_input:
@@ -103,8 +103,16 @@ def handle_user_query(user_input, user_phone, user_name=""):
         return "It’s the original Apple MacBook Pro."
     elif "deliver" in user_input or "near me" in user_input:
         return "I prefer to meet in person so you can check the laptop first."
+    elif "how old" in user_input or "year" in user_input:
+        return "It was bought in 2023, so it’s still quite new."
+    elif "test before buy" in user_input or "try" in user_input:
+        return "Yes, of course. If you're interested, you can check it during the visit."
+    elif "pictures" in user_input or "photos" in user_input:
+        return f"Sure! Here’s a picture: {image_url}"
+    elif "final price" in user_input or "last price" in user_input:
+        return f"I was looking for {price} QAR, but I might adjust a little. What’s your best offer?"
 
-    # Ensuite, on gère la visite et la négociation du prix
+    # 🔹 Gestion des visites et négociation du prix
     for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
         response = handler(user_input)
         if response:
