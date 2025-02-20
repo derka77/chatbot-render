@@ -29,95 +29,72 @@ def clean_text(text):
 def save_conversation(user_phone, message):
     user_conversations.setdefault(user_phone, []).append(message)
 
-# Fonction pour convertir une offre de prix en entier
-def convert_price_format(price_str):
-    price_str = price_str.lower().replace("qar", "").replace(",", "").strip()
-    match = re.search(r'\b\d+\b', price_str)
-    if match:
-        return int(match.group(0))
+# Détection automatique des catégories
+def detect_product_category(user_input):
+    CATEGORY_KEYWORDS = {
+        "vehicules": ["car", "motorcycle", "bike", "boat", "parts", "accessories", "van", "caravan"],
+        "mode": ["clothes", "shoes", "fashion"],
+        "luxe": ["jewelry", "watch", "bag", "luxury"],
+        "maison": ["furniture", "appliance", "decoration", "garden", "DIY"],
+        "multimedia": ["phone", "laptop", "console", "TV", "tablet", "camera"],
+        "loisirs": ["book", "music", "sport", "game", "toy", "collectible"],
+        "bebe": ["baby", "stroller", "crib", "diaper"],
+        "beaute": ["perfume", "cosmetics", "skincare", "wellness"]
+    }
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        if any(keyword in user_input for keyword in keywords):
+            return category
+    return "general"
+
+# Gestion des réponses dynamiques par catégorie
+def get_dynamic_response(user_input, category):
+    RESPONSES = {
+        "vehicules": {
+            "performance": ["The engine runs smoothly no issues", "No mechanical problems at all"],
+            "condition": ["No accidents well maintained", "Clean and well serviced"],
+            "age": ["It’s from 2021 still in good shape", "Recent model in great condition"]
+        },
+        "multimedia": {
+            "performance": ["Works perfectly no issues", "Very fast and responsive"],
+            "battery": ["Battery lasts long hours", "Battery life is very good"],
+            "condition": ["No scratches or broken screen", "Very well maintained like new"]
+        },
+        "mode": {
+            "condition": ["No stains no tears perfect condition", "Looks new and well maintained"],
+            "size": ["It’s size M fits well", "Standard size very comfortable"]
+        }
+    }
+    for intent, responses in RESPONSES.get(category, {}).items():
+        if intent in user_input:
+            return random.choice(responses)
     return None
-
-# Gestion de la négociation de prix
-def handle_price_negotiation(user_input, user_phone):
-    offer = convert_price_format(user_input)
-    if offer is not None:
-        save_conversation(user_phone, f"Offer detected: {offer} QAR")
-        if offer >= min_price:
-            return clean_text(f"Alright, {offer} QAR sounds fair. Let's proceed.")
-        else:
-            return clean_text(f"I was looking for {price} QAR, but I might adjust a little. What’s your best offer?")
-    return clean_text(f"I was hoping for {price} QAR, let me know what you have in mind.")
-
-# Proposer des créneaux de visite
-def propose_appointment_slots():
-    slots_text = "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
-    return clean_text(f"If you're really interested, I can be available:\n{slots_text}\nThe price is {price} QAR, let me know what works for you.")
-
-# Vérification des demandes de visite
-def handle_visit_request(user_input, user_phone):
-    visit_keywords = ["can i visit", "can i check", "see it", "meet to view"]
-    if any(request in user_input for request in visit_keywords):
-        return clean_text("Are you really interested? Let me know and we can arrange something.")
-    return None
-
-# Envoi des coordonnées et slots uniquement à l'acheteur
-def send_details_to_buyer(user_phone):
-    details = clean_text(
-        f"I'm in {location}, Doha. Let me know if you want to check it out.\n"
-        f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots]) + "\n"
-        f"Once confirmed, I will share the exact location and contact details."
-    )
-    twilio_client.messages.create(body=details, from_="+7470278321", to=user_phone)
-    return "Check your messages for details."
-
-# Envoi d'un résumé complet au vendeur
-def send_summary_to_seller(user_phone, user_name):
-    conversation_summary = " ".join(user_conversations[user_phone][-5:])
-    summary = clean_text(
-        f"Buyer {user_name}\n"
-        f"Recent messages: {conversation_summary}\n"
-        f"Buyer contact: {user_phone}\n"
-        f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
-    )
-    twilio_client.messages.create(body=summary, from_="+97470278321", to=seller_contact)
-    return "Info sent to the seller."
 
 # Gestion de la conversation principale
 def handle_user_query(user_input, user_phone, user_name=""):
     user_input = unidecode.unidecode(user_input.strip().lower())
     save_conversation(user_phone, user_input)
-    
+
     if user_input.startswith("salam"):
-        return "wa aleykoum salam, how can I help?"
+        return "wa aleykoum salam how can I help"
     
-    # ✅ Gestion des questions détectées
-    if "battery" in user_input or "drain" in user_input:
-        return "The battery life is great, lasts several hours without any issue."
-    elif "scratches" in user_input or "broken screen" in user_input:
-        return "No scratches, no damage. The screen is in perfect condition."
-    elif "box" in user_input or "charger" in user_input:
-        return "Yes, it comes with the original box and charger."
-    elif "why you sell" in user_input or "reason" in user_input:
-        return "I just don’t use it much, so I decided to sell."
-    elif "original" in user_input or "copy" in user_input:
-        return "It’s the original Apple MacBook Pro."
-    elif "deliver" in user_input or "near me" in user_input:
-        return "I prefer to meet in person so you can check the laptop first."
-    elif "how old" in user_input or "year" in user_input:
-        return "It was bought in 2023, so it’s still quite new."
-    elif "test before buy" in user_input or "try" in user_input:
-        return "Yes, of course. If you're interested, you can check it during the visit."
-    elif "pictures" in user_input or "photos" in user_input:
-        return f"Sure! Here’s a picture: {image_url}"
-    elif "final price" in user_input or "last price" in user_input:
-        return f"I was looking for {price} QAR, but I might adjust a little. What’s your best offer?"
+    category = detect_product_category(user_input)
+    dynamic_response = get_dynamic_response(user_input, category)
+    if dynamic_response:
+        return dynamic_response
 
-    # 🔹 Gestion des visites et négociation du prix
-    for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
-        response = handler(user_input)
-        if response:
-            return response
-
+    GENERAL_RESPONSES = {
+        "battery": ["Battery lasts long hours", "Battery performance is very good"],
+        "condition": ["No scratches no damage", "Very well maintained"],
+        "accessories": ["Comes with original accessories", "I have everything that was included"],
+        "reason": ["Selling because I don’t need it anymore", "Just upgrading to a new one"],
+        "test": ["Yes you can check it before buying", "Of course testing is possible"],
+        "price": [f"I was looking for {price} QAR but I might adjust", f"The price is {price} QAR but I can consider offers"]
+    }
+    
+    best_match, score = process.extractOne(user_input, GENERAL_RESPONSES.keys(), scorer=fuzz.partial_ratio)
+    if score > 75:
+        return random.choice(GENERAL_RESPONSES[best_match])
+    
     return random.choice(RESPONSE_VARIANTS)
 
 # Test du chatbot
