@@ -99,15 +99,13 @@ def handle_user_query(user_input, user_phone, user_name=""):
 
     # 🔹 Envoi du message à GPT-4o
     try:
-        response = openai.ChatCompletion.create(
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a helpful AI chatbot assisting buyers and sellers in a marketplace. Keep responses short and natural, without punctuation."},
-                {"role": "user", "content": user_input}
-            ]
+            messages=[{"role": "user", "content": user_input}]
         )
-        gpt_response = response["choices"][0]["message"]["content"].strip()
-        return gpt_response
+        bot_reply = response.choices[0].message.content
+
     
     except Exception as e:
         print(f"Erreur OpenAI : {e}")
