@@ -3,23 +3,20 @@ from twilio.twiml.messaging_response import MessagingResponse
 from chatbot import handle_user_query  # ✅ On utilise notre propre chatbot
 import logging
 import os
-import logging
 import traceback
 
-# Configurer le logging pour capturer toutes les erreurs
+# Configuration des logs
 logging.basicConfig(level=logging.DEBUG)
 
+app = Flask(__name__)  # ✅ Définition correcte de `app`
+
+# 🔹 Gestion des erreurs
 @app.errorhandler(Exception)
 def handle_exception(e):
     logging.error(f"Erreur détectée : {e}")
     traceback_str = traceback.format_exc()
     logging.error(traceback_str)
     return "Internal Server Error", 500
-
-# Configuration des logs
-logging.basicConfig(level=logging.DEBUG)
-
-app = Flask(__name__)
 
 # 🔹 Route d'accueil pour vérifier si le serveur tourne
 @app.route("/", methods=["GET"])
