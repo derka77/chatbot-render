@@ -7,6 +7,7 @@ from test_listing import title, category, description, price, location, min_pric
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
 from openai import OpenAI
+import os
 
 # Initialisation du client OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
