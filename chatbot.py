@@ -3,43 +3,33 @@ import random
 import re
 import unidecode
 from twilio.rest import Client
-from test_listing import title, category, description, price, location, min_price, seller_contact, image_url, available_slots, condition, year_model, location_map_url
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # Ajoute le dossier courant au chemin des imports
+from test_listing import (
+    title, category, description, price, location, min_price, seller_contact, image_url,
+    available_slots, condition, year_model, location_map_url
+)
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
-import openai  # Import OpenAI API
-from dotenv import load_dotenv
 
-load_dotenv()  # Charge les variables d'environnement du fichier .env
-
-# 🔹 Configure ta clé API OpenAI
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
-
-# Historique des échanges
+# Historique des échanges et suivi des acheteurs
 confirmed_deals = {}
 scheduled_appointments = {}
 user_conversations = {}
 buyer_attempts = {}
 
-# Configuration de Twilio
-twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+# Configuration Twilio
+twilio_client = Client("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN")
 
-# Fonction pour nettoyer les mots interdits
+# Nettoyage des mots interdits
 def clean_text(text):
     for word, replacement in FORBIDDEN_WORDS.items():
         text = text.replace(word, replacement)
     return text
 
-# Fonction pour enregistrer les conversations pour statistiques
+# Enregistrement des conversations pour statistiques
 def save_conversation(user_phone, message):
     user_conversations.setdefault(user_phone, []).append(message)
 
-# Fonction pour convertir une offre de prix en entier
+# Conversion des offres de prix en nombre
 def convert_price_format(price_str):
     price_str = price_str.lower().replace("qar", "").replace(",", "").strip()
     match = re.search(r'\b\d+\b', price_str)
@@ -53,63 +43,67 @@ def handle_price_negotiation(user_input, user_phone):
     if offer is not None:
         save_conversation(user_phone, f"Offer detected: {offer} QAR")
         if offer >= min_price:
-            return clean_text(f"Alright, {offer} QAR sounds fair. Let's proceed.")
+            return clean_text(f"Alright, {offer} QAR sounds fair lets proceed")
         else:
-            return clean_text(f"I was looking for {price} QAR, but I might adjust a little. What’s your best offer?")
-    return clean_text(f"I was hoping for {price} QAR, let me know what you have in mind.")
+            return clean_text(f"I was looking for {price} QAR but I might adjust a little Whats your best offer")
+    return clean_text(f"I was hoping for {price} QAR let me know what you have in mind")
 
-# Proposer des créneaux de visite
+# Proposition de créneaux de visite
 def propose_appointment_slots():
     slots_text = "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
-    return clean_text(f"If you're really interested, I can be available:\n{slots_text}\nThe price is {price} QAR, let me know what works for you.")
+    return clean_text(f"If you are really interested I can be available:\n{slots_text}\nThe price is {price} QAR let me know what works for you")
 
 # Vérification des demandes de visite
 def handle_visit_request(user_input, user_phone):
     visit_keywords = ["can i visit", "can i check", "see it", "meet to view"]
     if any(request in user_input for request in visit_keywords):
-        return clean_text("Are you really interested? Let me know and we can arrange something.")
+        return clean_text("Are you really interested Let me know and we can arrange something")
     return None
 
-# Envoi des coordonnées et slots uniquement à l'acheteur
+# Envoi des coordonnées et créneaux uniquement à l'acheteur sérieux
 def send_details_to_buyer(user_phone):
     details = clean_text(
-        f"I'm in {location}, Doha. Let me know if you want to check it out.\n"
+        f"I'm in {location} Doha Let me know if you want to check it out\n"
         f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots]) + "\n"
-        f"Once confirmed, I will share the exact location and contact details."
+        f"Once confirmed I will share the exact location and contact details"
     )
-    twilio_client.messages.create(body=details, from_=TWILIO_WHATSAPP_NUMBER, to=user_phone)
-    return "Check your messages for details."
+    twilio_client.messages.create(body=details, from_="+7470278321", to=user_phone)
+    return "Check your messages for details"
 
 # Envoi d'un résumé complet au vendeur
 def send_summary_to_seller(user_phone, user_name):
-    conversation_summary = " ".join(user_conversations.get(user_phone, [])[-5:])
+    conversation_summary = " ".join(user_conversations[user_phone][-5:])
     summary = clean_text(
         f"Buyer {user_name}\n"
         f"Recent messages: {conversation_summary}\n"
         f"Buyer contact: {user_phone}\n"
         f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
     )
-    twilio_client.messages.create(body=summary, from_=TWILIO_WHATSAPP_NUMBER, to=seller_contact)
-    return "Info sent to the seller."
+    twilio_client.messages.create(body=summary, from_="+97470278321", to=seller_contact)
+    return "Info sent to the seller"
 
-# Gestion de la conversation principale
+# Gestion des conversations
 def handle_user_query(user_input, user_phone, user_name=""):
     user_input = unidecode.unidecode(user_input.strip().lower())
     save_conversation(user_phone, user_input)
 
-    # 🔹 Envoi du message à GPT-4o
-    try:
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)  # Ajout explicite de la clé API
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": user_input}]
-        )
-        bot_reply = response.choices[0].message.content
-        return bot_reply  # Assure le retour de la réponse générée
-    
-    except Exception as e:
-        print(f"Erreur OpenAI : {e}")
-        return "Sorry something went wrong try again later"
+    # Gestion des salutations
+    if user_input.startswith("salam"):
+        return "wa aleykoum salam how can I help"
+
+    # Gestion des requêtes utilisateur
+    for handler in [handle_visit_request, lambda inp: handle_price_negotiation(inp, user_phone)]:
+        response = handler(user_input)
+        if response:
+            return response
+
+    # Après plusieurs erreurs, redirection vers un humain
+    buyer_attempts[user_phone] = buyer_attempts.get(user_phone, 0) + 1
+    if buyer_attempts[user_phone] >= 4:
+        send_summary_to_seller(user_phone, user_name)
+        return "I will get back to you soon"
+
+    return random.choice(RESPONSE_VARIANTS)
 
 # Test du chatbot
 if __name__ == "__main__":
