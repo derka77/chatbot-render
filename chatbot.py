@@ -6,6 +6,10 @@ from twilio.rest import Client
 from test_listing import title, category, description, price, location, min_price, seller_contact, image_url, available_slots, condition, year_model, location_map_url
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
+from openai import OpenAI
+
+# Initialisation du client OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Historique des échanges
 confirmed_deals = {}
@@ -83,17 +87,26 @@ def send_summary_to_seller(user_phone, user_name):
 def handle_user_query(user_input, user_phone, user_name=""):
     user_input = unidecode.unidecode(user_input.strip().lower())
     save_conversation(user_phone, user_input)
-    
+
     if user_input.startswith("salam"):
         return "wa aleykoum salam, how can I help?"
     
-    # Gestion des demandes
+    # Vérifier si c'est une question standard avec l'ancien système
     for handler in [handle_visit_request, lambda inp: handle_price_negotiation(inp, user_phone)]:
         response = handler(user_input)
         if response:
             return response
     
-    return random.choice(RESPONSE_VARIANTS)
+    # 🔥 Si aucune réponse trouvée, on interroge GPT-4
+    try:
+        gpt_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": user_input}]
+        )
+        bot_reply = gpt_response.choices[0].message.content
+        return bot_reply
+    except Exception as e:
+        return "Sorry, I didn’t get that, can you repeat?"
 
 # Test du chatbot
 if __name__ == "__main__":
