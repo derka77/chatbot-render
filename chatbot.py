@@ -81,7 +81,7 @@ def handle_user_query(user_input, user_phone, user_name=""):
         "how are you": ["I'm good thanks how can I assist you", "I'm fine how can I help"],
         "you feel well": ["I'm good thanks how can I assist you", "I'm fine how can I help"],
         "morning": ["Good morning how can I assist you", "Morning how can I help"],
-        "good evening": ["Good evening how can I assist you", "Good evening how can I help"]
+        "good evening": ["Good evening how can I assist you", "Good evening how can I help"],
         "good morning": ["Good morning how can I assist you", "Good Morning how can I help"]
     }
 
