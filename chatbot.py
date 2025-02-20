@@ -4,32 +4,32 @@ import re
 import unidecode
 from twilio.rest import Client
 from test_listing import (
-    title, category, description, price, location, min_price, seller_contact, image_url,
-    available_slots, condition, year_model, location_map_url
+    title, category, description, price, location, min_price,
+    seller_contact, image_url, available_slots, condition, year_model, location_map_url
 )
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
 
-# Historique des échanges et suivi des acheteurs
+# Historique des échanges
 confirmed_deals = {}
 scheduled_appointments = {}
 user_conversations = {}
 buyer_attempts = {}
 
-# Configuration Twilio
+# Configuration de Twilio
 twilio_client = Client("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN")
 
-# Nettoyage des mots interdits
+# Nettoyage du texte
 def clean_text(text):
     for word, replacement in FORBIDDEN_WORDS.items():
         text = text.replace(word, replacement)
     return text
 
-# Enregistrement des conversations pour statistiques
+# Enregistrer conversations pour statistiques
 def save_conversation(user_phone, message):
     user_conversations.setdefault(user_phone, []).append(message)
 
-# Conversion des offres de prix en nombre
+# Convertir une offre de prix en entier
 def convert_price_format(price_str):
     price_str = price_str.lower().replace("qar", "").replace(",", "").strip()
     match = re.search(r'\b\d+\b', price_str)
@@ -43,32 +43,32 @@ def handle_price_negotiation(user_input, user_phone):
     if offer is not None:
         save_conversation(user_phone, f"Offer detected: {offer} QAR")
         if offer >= min_price:
-            return clean_text(f"Alright, {offer} QAR sounds fair lets proceed")
+            return clean_text(f"Alright, {offer} QAR sounds fair. Let's proceed.")
         else:
-            return clean_text(f"I was looking for {price} QAR but I might adjust a little Whats your best offer")
-    return clean_text(f"I was hoping for {price} QAR let me know what you have in mind")
+            return clean_text(f"I was looking for {price} QAR, but I might adjust a little. What’s your best offer?")
+    return None
 
-# Proposition de créneaux de visite
+# Proposer des créneaux de visite
 def propose_appointment_slots():
     slots_text = "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
-    return clean_text(f"If you are really interested I can be available:\n{slots_text}\nThe price is {price} QAR let me know what works for you")
+    return clean_text(f"If you're really interested, I can be available:\n{slots_text}\nThe price is {price} QAR, let me know what works for you.")
 
 # Vérification des demandes de visite
 def handle_visit_request(user_input, user_phone):
     visit_keywords = ["can i visit", "can i check", "see it", "meet to view"]
     if any(request in user_input for request in visit_keywords):
-        return clean_text("Are you really interested Let me know and we can arrange something")
+        return clean_text("Are you really interested? Let me know and we can arrange something.")
     return None
 
-# Envoi des coordonnées et créneaux uniquement à l'acheteur sérieux
+# Envoi des détails uniquement à l'acheteur sérieux
 def send_details_to_buyer(user_phone):
     details = clean_text(
-        f"I'm in {location} Doha Let me know if you want to check it out\n"
+        f"I'm in {location}, Doha. Let me know if you want to check it out.\n"
         f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots]) + "\n"
-        f"Once confirmed I will share the exact location and contact details"
+        f"Once confirmed, I will share the exact location and contact details."
     )
     twilio_client.messages.create(body=details, from_="+7470278321", to=user_phone)
-    return "Check your messages for details"
+    return "Check your messages for details."
 
 # Envoi d'un résumé complet au vendeur
 def send_summary_to_seller(user_phone, user_name):
@@ -80,50 +80,39 @@ def send_summary_to_seller(user_phone, user_name):
         f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
     )
     twilio_client.messages.create(body=summary, from_="+97470278321", to=seller_contact)
-    return "Info sent to the seller"
+    return "Info sent to the seller."
 
-# Gestion des conversations
+# Gestion de la conversation principale
 def handle_user_query(user_input, user_phone, user_name=""):
     user_input = unidecode.unidecode(user_input.strip().lower())
     save_conversation(user_phone, user_input)
-
-    # Gestion des salutations
+    
+    # Salam en premier
     if user_input.startswith("salam"):
-        return "wa aleykoum salam how can I help"
+        return "wa aleykoum salam, how can I help?"
 
-    # Vérifier si c'est une demande de visite
-visit_response = handle_visit_request(user_input, user_phone)
-if visit_response:
-    return visit_response
+    # Vérifier les questions sur l'annonce
+    question_keywords = {
+        "model": f"It's a {title}, category: {category}.",
+        "year": f"The model year is {year_model}.",
+        "condition": f"The item is in {condition} condition.",
+        "available": f"It's available. The price is {price} QAR.",
+    }
 
-# Vérifier si c'est une négociation de prix
-price_response = handle_price_negotiation(user_input, user_phone)
-if price_response and "QAR" in price_response:
-    return price_response
+    for keyword, response in question_keywords.items():
+        if keyword in user_input:
+            return clean_text(response)
 
-# Vérifier si l'utilisateur pose une question sur l'annonce
-question_keywords = {
-    "model": f"It's a {title}, category: {category}",
-    "year": f"The model year is {year_model}",
-    "condition": f"The item is in {condition} condition",
-    "available": f"It's available. The price is {price} QAR",
-}
+    # Gestion des demandes
+    visit_response = handle_visit_request(user_input, user_phone)
+    if visit_response:
+        return visit_response
 
-for keyword, response in question_keywords.items():
-    if keyword in user_input:
-        return clean_text(response)
+    price_response = handle_price_negotiation(user_input, user_phone)
+    if price_response:
+        return price_response
 
-# Sinon, donner une réponse générique
-return random.choice(RESPONSE_VARIANTS)
-
-
-
-    # Après plusieurs erreurs, redirection vers un humain
-    buyer_attempts[user_phone] = buyer_attempts.get(user_phone, 0) + 1
-    if buyer_attempts[user_phone] >= 4:
-        send_summary_to_seller(user_phone, user_name)
-        return "I will get back to you soon"
-
+    # Sinon, réponse générique intelligente
     return random.choice(RESPONSE_VARIANTS)
 
 # Test du chatbot
