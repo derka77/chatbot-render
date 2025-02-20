@@ -1,5 +1,6 @@
 import openai
-import time 
+import os
+import time
 import random
 import re
 import unidecode
@@ -8,10 +9,9 @@ from test_listing import title, category, description, price, location, min_pric
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
 from openai import OpenAI
-import os
 
 # Initialisation du client OpenAI
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Historique des échanges
 confirmed_deals = {}
@@ -20,7 +20,7 @@ user_conversations = {}
 buyer_attempts = {}
 
 # Configuration de Twilio
-twilio_client = Client("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN")
+twilio_client = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
 # Fonction pour nettoyer les mots interdits
 def clean_text(text):
@@ -75,7 +75,7 @@ def send_details_to_buyer(user_phone):
 
 # Envoi d'un résumé complet au vendeur
 def send_summary_to_seller(user_phone, user_name):
-    conversation_summary = " ".join(user_conversations[user_phone][-5:])
+    conversation_summary = " ".join(user_conversations.get(user_phone, [])[-5:])
     summary = clean_text(
         f"Buyer {user_name}\n"
         f"Recent messages: {conversation_summary}\n"
@@ -110,7 +110,7 @@ def handle_user_query(user_input, user_phone, user_name=""):
     except Exception as e:
         return "Sorry, I didn’t get that, can you repeat?"
 
-# Test du chatbot
+# Test du chatbot en local
 if __name__ == "__main__":
     test_phone = "+97412345678"
     test_name = "Ali"
