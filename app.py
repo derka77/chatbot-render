@@ -2,50 +2,48 @@ from flask import Flask, request, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
 from chatbot import handle_user_query  # ✅ On utilise notre propre chatbot
 import logging
-logging.basicConfig(level=logging.DEBUG)
+import os
 
+# Configuration des logs
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# 🔹 Ajout de la route d'accueil pour tester si le serveur tourne bien
+# 🔹 Route d'accueil pour vérifier si le serveur tourne
 @app.route("/", methods=["GET"])
 def home():
     return "Chatbot API is running!"
 
+# 🔹 Route principale du chatbot
 @app.route('/chatbot', methods=['POST'])
 def chatbot():
     user_message = request.json.get("message")
     user_phone = request.json.get("phone_number")  # Récupérer le numéro de téléphone
 
-    # ✅ Utiliser notre propre chatbot
+    app.logger.info(f"📩 Message reçu : {user_message} de {user_phone}")
     bot_reply = handle_user_query(user_message, user_phone)
-
+    
+    app.logger.info(f"🤖 Bot répond : {bot_reply}")
     return jsonify({"response": bot_reply})
 
-# 🔗 Route pour gérer WhatsApp via Twilio
+# 🔹 Route pour gérer WhatsApp via Twilio
 @app.route('/whatsapp', methods=['POST'])
 def whatsapp():
     incoming_msg = request.values.get('Body', '').strip()
     user_phone = request.values.get('From', '').strip()
 
-    app.logger.info(f"📩 Message reçu : {incoming_msg} de {user_phone}")
+    app.logger.info(f"📩 Message brut reçu: {incoming_msg}")
+    app.logger.info(f"📞 Numéro de l'utilisateur: {user_phone}")
 
     bot_reply = handle_user_query(incoming_msg, user_phone)
-
-    # 🔍 Debug : afficher les logs des messages
-    print(f"[DEBUG] Message brut reçu: {incoming_msg} de {user_phone}")
-    print(f"[📤 RÉPONSE ENVOYÉE] {bot_reply}")
-
+    
+    app.logger.info(f"🤖 Réponse envoyée: {bot_reply}")
+    
     # ✅ Répondre via Twilio
     twilio_response = MessagingResponse()
-    app.logger.info(f"🤖 Bot répond : {bot_reply}")
     twilio_response.message(bot_reply)
     return str(twilio_response)
-
-import os
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Render définit un port automatiquement
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
