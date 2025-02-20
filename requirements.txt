@@ -1,4 +1,6 @@
-Flask
+flask
 twilio
+openai
+python-dotenv
+gunicorn
 rapidfuzz
-unidecode
