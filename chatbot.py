@@ -91,10 +91,25 @@ def handle_user_query(user_input, user_phone, user_name=""):
         return "wa aleykoum salam, how can I help?"
     
     # Gestion des demandes
-    for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
-        response = handler(user_input)
-        if response:
-            return response
+    # Détection des intentions de l'acheteur
+if "battery" in user_input or "drain" in user_input:
+    return "The battery life is great, lasts several hours without any issue."
+elif "scratches" in user_input or "broken screen" in user_input:
+    return "No scratches, no damage. The screen is in perfect condition."
+elif "box" in user_input or "charger" in user_input:
+    return "Yes, it comes with the original box and charger."
+elif "why you sell" in user_input or "reason" in user_input:
+    return "I just don’t use it much, so I decided to sell."
+elif "original" in user_input or "copy" in user_input:
+    return "It’s the original Apple MacBook Pro."
+elif "deliver" in user_input or "near me" in user_input:
+    return "I prefer to meet in person so you can check the laptop first."
+
+# Ensuite, on gère la visite et la négociation du prix
+for handler in [lambda inp: handle_visit_request(inp, user_phone), lambda inp: handle_price_negotiation(inp, user_phone)]:
+    response = handler(user_input)
+    if response:
+        return response
     
     return random.choice(RESPONSE_VARIANTS)
 
