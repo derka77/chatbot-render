@@ -30,10 +30,18 @@ def save_conversation(user_phone, message):
 
 # Correspondance des questions avec la FAQ en utilisant RapidFuzz
 def match_question(user_input):
-    best_match, score = process.extractOne(user_input, FAQ_QUESTIONS.keys(), scorer=fuzz.token_sort_ratio)
-    if score > 75:
+    match = process.extractOne(user_input, FAQ_QUESTIONS.keys(), scorer=fuzz.token_sort_ratio)
+    
+    if match is None:  # Si aucune correspondance trouvée
+        return None
+
+    best_match, score = match  # Extraction sécurisée
+    
+    if score > 75:  # Vérifier le seuil de pertinence
         return FAQ_QUESTIONS[best_match]
+    
     return None
+
 
 # Gestion des offres de prix
 def handle_price_negotiation(user_input, user_phone):
