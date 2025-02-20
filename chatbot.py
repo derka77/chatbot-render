@@ -10,12 +10,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # Ajoute le dossier
 from config import FORBIDDEN_WORDS, RESPONSE_VARIANTS, FOLLOW_UP_VARIANTS
 from rapidfuzz import process, fuzz
 import openai  # Import OpenAI API
-import os
 from dotenv import load_dotenv
+
 load_dotenv()  # Charge les variables d'environnement du fichier .env
 
-# 🔹 Configure ta clé API OpenAI (Stocke-la en variable d’environnement)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# 🔹 Configure ta clé API OpenAI
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
@@ -27,7 +27,7 @@ user_conversations = {}
 buyer_attempts = {}
 
 # Configuration de Twilio
-twilio_client = Client("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN")
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # Fonction pour nettoyer les mots interdits
 def clean_text(text):
@@ -77,19 +77,19 @@ def send_details_to_buyer(user_phone):
         f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots]) + "\n"
         f"Once confirmed, I will share the exact location and contact details."
     )
-    twilio_client.messages.create(body=details, from_="+7470278321", to=user_phone)
+    twilio_client.messages.create(body=details, from_=TWILIO_WHATSAPP_NUMBER, to=user_phone)
     return "Check your messages for details."
 
 # Envoi d'un résumé complet au vendeur
 def send_summary_to_seller(user_phone, user_name):
-    conversation_summary = " ".join(user_conversations[user_phone][-5:])
+    conversation_summary = " ".join(user_conversations.get(user_phone, [])[-5:])
     summary = clean_text(
         f"Buyer {user_name}\n"
         f"Recent messages: {conversation_summary}\n"
         f"Buyer contact: {user_phone}\n"
         f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
     )
-    twilio_client.messages.create(body=summary, from_="+97470278321", to=seller_contact)
+    twilio_client.messages.create(body=summary, from_=TWILIO_WHATSAPP_NUMBER, to=seller_contact)
     return "Info sent to the seller."
 
 # Gestion de la conversation principale
@@ -99,13 +99,13 @@ def handle_user_query(user_input, user_phone, user_name=""):
 
     # 🔹 Envoi du message à GPT-4o
     try:
-        client = openai.OpenAI()
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)  # Ajout explicite de la clé API
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": user_input}]
         )
         bot_reply = response.choices[0].message.content
-
+        return bot_reply  # Assure le retour de la réponse générée
     
     except Exception as e:
         print(f"Erreur OpenAI : {e}")
