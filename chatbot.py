@@ -60,54 +60,69 @@ def handle_visit_request(user_input, user_phone):
         return clean_text("Are you really interested? Let me know and we can arrange something.")
     return None
 
-# Envoi des détails uniquement à l'acheteur sérieux
-def send_details_to_buyer(user_phone):
-    details = clean_text(
-        f"I'm in {location}, Doha. Let me know if you want to check it out.\n"
-        f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots]) + "\n"
-        f"Once confirmed, I will share the exact location and contact details."
-    )
-    twilio_client.messages.create(body=details, from_="+7470278321", to=user_phone)
-    return "Check your messages for details."
+# Détection des questions sur l'annonce avec RapidFuzz
+def detect_question(user_input):
+    question_patterns = {
+        "performance": ["does this laptop work well", "any problem", "is it working fine"],
+        "battery": ["how long battery last", "battery drain fast", "good battery"],
+        "reason_sale": ["why you sell", "why selling"],
+        "accessories": ["you have box and charger", "any accessories"],
+        "condition": ["any scratches", "screen broken", "good condition"],
+        "age": ["how old is laptop", "year bought"],
+        "test_before_buy": ["can i test before buy", "try it first"],
+        "price_negotiation": ["can you lower price", "final price"],
+        "more_pictures": ["send more pictures", "can i see more photos"],
+        "original_model": ["is original model or copy", "genuine or fake"],
+        "delivery": ["can you deliver", "home delivery available"]
+    }
 
-# Envoi d'un résumé complet au vendeur
-def send_summary_to_seller(user_phone, user_name):
-    conversation_summary = " ".join(user_conversations[user_phone][-5:])
-    summary = clean_text(
-        f"Buyer {user_name}\n"
-        f"Recent messages: {conversation_summary}\n"
-        f"Buyer contact: {user_phone}\n"
-        f"Available slots:\n" + "\n".join([f"- {slot.replace('-', ' between ')}" for slot in available_slots])
-    )
-    twilio_client.messages.create(body=summary, from_="+97470278321", to=seller_contact)
-    return "Info sent to the seller."
+    best_match = None
+    best_score = 0
+    for category, questions in question_patterns.items():
+        match, score, _ = process.extractOne(user_input, questions, scorer=fuzz.partial_ratio)
+        if score > best_score:
+            best_match = category
+            best_score = score
+
+    return best_match if best_score > 75 else None
+
+# Réponses associées aux questions détectées
+def get_answer_for_question(question_category):
+    answers = {
+        "performance": "Yes, it works perfectly, no issues at all.",
+        "battery": "The battery life is great, lasts several hours without any issue.",
+        "reason_sale": "I just don’t use it much, so I decided to sell.",
+        "accessories": "Yes, it comes with the original box and charger.",
+        "condition": "No scratches, no damage. The screen is in perfect condition.",
+        "age": f"It was bought in {year_model}, so it’s still quite new.",
+        "test_before_buy": "Yes, of course. If you're interested, you can check it during the visit.",
+        "price_negotiation": f"I was looking for {price} QAR, but I might adjust a little. What’s your best offer?",
+        "more_pictures": f"Sure! Here’s a picture: {image_url}",
+        "original_model": "It’s the original Apple MacBook Pro.",
+        "delivery": "I prefer to meet in person so you can check the laptop first."
+    }
+    return answers.get(question_category, None)
 
 # Gestion de la conversation principale
 def handle_user_query(user_input, user_phone, user_name=""):
     user_input = unidecode.unidecode(user_input.strip().lower())
     save_conversation(user_phone, user_input)
-    
+
     # Salam en premier
     if user_input.startswith("salam"):
         return "wa aleykoum salam, how can I help?"
 
-    # Vérifier les questions sur l'annonce
-    question_keywords = {
-        "model": f"It's a {title}, category: {category}.",
-        "year": f"The model year is {year_model}.",
-        "condition": f"The item is in {condition} condition.",
-        "available": f"It's available. The price is {price} QAR.",
-    }
+    # Détecter la question avec RapidFuzz
+    question_category = detect_question(user_input)
+    if question_category:
+        return clean_text(get_answer_for_question(question_category))
 
-    for keyword, response in question_keywords.items():
-        if keyword in user_input:
-            return clean_text(response)
-
-    # Gestion des demandes
+    # Vérifier les demandes de visite
     visit_response = handle_visit_request(user_input, user_phone)
     if visit_response:
         return visit_response
 
+    # Vérifier les négociations de prix
     price_response = handle_price_negotiation(user_input, user_phone)
     if price_response:
         return price_response
